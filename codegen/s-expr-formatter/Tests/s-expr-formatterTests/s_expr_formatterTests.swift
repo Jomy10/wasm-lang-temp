@@ -2,10 +2,30 @@ import XCTest
 @testable import s_expr_formatter
 
 final class s_expr_formatterTests: XCTestCase {
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        XCTAssertEqual(s_expr_formatter().text, "Hello, World!")
+    func testFormatter() {
+        let expected =
+        """
+        (module
+            (func $v
+                (param $p i32)
+                (result i32)
+                local.get $p
+            )
+        )
+        """
+
+        let toFormat =
+        """
+                    (module
+        (func $v
+                (param $p i32)
+        (result i32)
+                local.get $p
+        )
+            )
+        """
+
+        let formatted = __format(input: toFormat)
+        XCTAssertEqual(expected, formatted)
     }
 }

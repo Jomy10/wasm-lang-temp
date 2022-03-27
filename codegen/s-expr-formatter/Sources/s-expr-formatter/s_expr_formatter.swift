@@ -3,7 +3,7 @@ import Foundation
 /// A simple S-expression formatter
 ///
 /// The formatter only fixes indentation
-func __format(input: String, tab: String = "    ") -> String {
+public func __format(input: String, tab: String = "    ") -> String {
     var tabs = 0
     return input.split(separator: "\n").map { s in
         let _s = s.trimmingCharacters(in: .whitespacesAndNewlines)
