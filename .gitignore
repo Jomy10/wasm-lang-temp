@@ -1,0 +1,8 @@
+**/target
+**/.build
+**/.xcode
+**/.swiftpm
+**/.idea
+**/.vscode
+**/.DS_Store*
+
