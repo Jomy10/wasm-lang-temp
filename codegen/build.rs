@@ -1,5 +1,4 @@
 use std::env;
-use std::env::current_dir;
 use std::process::Command;
 use serde::Deserialize;
 
@@ -7,7 +6,6 @@ fn main() {
     let target = env::var("CARGO_CFG_TARGET_OS").unwrap();
     
     // s-expressions formatter
-    println!("linking...");
     if target == "macos" {
         build_macos_formatter();
     }
@@ -28,7 +26,6 @@ struct SwiftTarget {
 }
 
 fn build_macos_formatter() {
-    println!("PWD: {:?}", current_dir());
     let profile = env::var("PROFILE").unwrap(); // release / debug
     let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let target = format!("{}-apple-macosx{}", arch, MACOS_TARGET_VERSION);
