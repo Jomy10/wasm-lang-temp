@@ -1,12 +1,16 @@
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref REGEX: Regex = Regex::new(&parser_regex()).unwrap();
+}
 
 /// Tokenize source code into `Tokens` using regex (see `parser_regex`)
 pub fn tokenize(input: &str) -> Vec<Token> {
-    let regex = Regex::new(&parser_regex()).unwrap();
-    let group_names: Vec<&str> = regex.capture_names().skip(1).map(|x| x.unwrap()).collect::<Vec<&str>>();
+    let group_names: Vec<&str> = REGEX.capture_names().skip(1).map(|x| x.unwrap()).collect::<Vec<&str>>();
     
     let mut matches: Vec<Token> = vec![];
-    for captures in regex.captures_iter(input) {
+    for captures in REGEX.captures_iter(input) {
         for name in &group_names {
             if let Some(m) = captures.as_ref().unwrap().name(name) {
                 matches.push(Token::new(name, (m.start(), m.end())));
@@ -18,26 +22,43 @@ pub fn tokenize(input: &str) -> Vec<Token> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Token {
-    pub name: String,
+pub struct Token<'a> {
+    pub name: &'a str,
     pub range: (usize, usize)
 }
 
-impl Token {
-    pub fn new(name: &str, range: (usize, usize)) -> Self {
+impl<'a> Token<'a> {
+    pub fn new(name: &'a str, range: (usize, usize)) -> Self {
         Self {
-            name: name.to_string(), range
+            name, range
         }
     }
     
-    pub fn from(tuple: (&str, (usize, usize))) -> Self {
+    pub fn from(tuple: (&'a str, (usize, usize))) -> Self {
         Self {
-            name: tuple.0.to_string(),
+            name: tuple.0,
             range: tuple.1
         }
     }
 }
 
+// TODO: compile time
+fn parser_regex() -> String {
+    [
+        r#"(?<pub>\bpub\b)"#,                               // pub
+        r#"(?<func>\bfunc\b)"#,                             // func
+        r#"(?<open_bracket>\()"#,                           // (
+        r#"(?<closed_bracket>\))"#,                         // )
+        r#"(?<open_curly_bracket>\{)"#,                     // {
+        r#"(?<closed_curly_bracket>\})"#,                   // }
+        r#"(?<colon>:)"#,                                   // :
+        r#"(?<comma>,)"#,                                   // ,
+        r#"(?P<type>\b(?:i32|i64|f32|f64)\b)"#,             // types (i32, i64, f32, f64)
+        r#"(?P<ident>\b[a-zA-Z_]+[a-zA-Z_0-9$]+\b)"#,       // identifier (someIdent, some$ident, $notIdent, _someIdent)
+    ].join("|")
+}
+
+/*
 fn parser_regex() -> String {
     [
         r#"(?P<doc_comment>/// ?[.+ ]*.*)"#, // doc comment
@@ -71,3 +92,4 @@ fn parser_regex() -> String {
         r#"(?P<return_a>->)"#, // return token (->)
     ].join("|")
 }
+*/

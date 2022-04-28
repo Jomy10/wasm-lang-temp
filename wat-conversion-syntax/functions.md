@@ -1,4 +1,4 @@
-# Syntax and unerlying wasm repr
+# Syntax and underlying wasm repr
 
 ## adding
 ```
@@ -12,6 +12,17 @@ func add(lhs: i32, rhs: i32) -> i32 {
     local.get $lhs
     local.get $rhs
     i32.add
+)
+```
+
+OR
+
+```wat
+(func $add (param $lhs i32) (param $rhs i32) (result i32)
+    (i32.add
+        (local.get $lhs)
+        (local.get $rhs)
+    )
 )
 ```
 

@@ -4,14 +4,14 @@ use serde::Deserialize;
 
 fn main() {
     let target = env::var("CARGO_CFG_TARGET_OS").unwrap();
-    
-    // s-expressions formatter
+
+    // s-expression formatter
     if target == "macos" {
         build_macos_formatter();
-    }
-}
+    } // TODO: other platforms
+}  
 
-////////////////////////////////// s-expressions formatter //////////////////////////////////
+/////////////////////////////////// s-expressions formatter //////////////////////////////////
 const MACOS_TARGET_VERSION: &str = "10.15";
 
 #[derive(Debug, Deserialize)]
