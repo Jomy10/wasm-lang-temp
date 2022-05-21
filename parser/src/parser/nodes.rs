@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Node<'a> {
     Func { 
         /// External name
@@ -14,7 +14,39 @@ pub enum Node<'a> {
         /// Function body
         body: Vec<Node<'a>>
     },
-    FuncParam 
+    /// Mutable variable declaration with `var`
+    VarDecl {
+        ext_name: &'a str,
+        int_name: String,
+        /// Variable's type
+        t: Type,
+        // Initial value can be a constant or a function or any other statement
+        initial_value: Option<Rc<Node<'a>>>
+    },
+    Literal(LiteralValue<'a>),
+    Return {
+        value: Option<Rc<Node<'a>>>
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum LiteralValue<'a> {
+    i32(&'a str),
+    i64(&'a str),
+    f32(&'a str),
+    f64(&'a str)
+}
+
+impl<'a> LiteralValue<'a> {
+    pub fn new(value: &'a str, t: Type) -> Self {
+        match t {
+            Type::i32 => Self::i32(value),
+            Type::i64 => todo!(),
+            Type::f32 => todo!(),
+            Type::f64 => todo!(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -27,7 +59,7 @@ pub struct FuncParam<'a> {
     pub t: Type
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub enum Type {
     i32,

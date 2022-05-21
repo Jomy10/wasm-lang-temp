@@ -42,19 +42,23 @@ impl<'a> Token<'a> {
     }
 }
 
-// TODO: compile time
+// TODO: join string at compile time
 fn parser_regex() -> String {
     [
         r#"(?<pub>\bpub\b)"#,                               // pub
         r#"(?<func>\bfunc\b)"#,                             // func
+        r#"(?<var>\bvar\b)"#,                               // var
+        r#"(?<return>\breturn\b)"#,                         // return
+        r#"(?<int_literal>\b\d+\b)"#,                       // integer literal; `56`, `7`
+        r#"(?<equal_sign>=)"#,                              // =
         r#"(?<open_bracket>\()"#,                           // (
         r#"(?<closed_bracket>\))"#,                         // )
         r#"(?<open_curly_bracket>\{)"#,                     // {
         r#"(?<closed_curly_bracket>\})"#,                   // }
         r#"(?<colon>:)"#,                                   // :
         r#"(?<comma>,)"#,                                   // ,
-        r#"(?P<type>\b(?:i32|i64|f32|f64)\b)"#,             // types (i32, i64, f32, f64)
-        r#"(?P<ident>\b[a-zA-Z_]+[a-zA-Z_0-9$]+\b)"#,       // identifier (someIdent, some$ident, $notIdent, _someIdent)
+        r#"(?<type>\b(?:i32|i64|f32|f64)\b)"#,              // types (i32, i64, f32, f64)
+        r#"(?<ident>\b[a-zA-Z_]+[a-zA-Z_0-9$]*\b)"#,        // identifier (someIdent, some$ident, $notIdent, _someIdent)
     ].join("|")
 }
 
@@ -70,7 +74,7 @@ fn parser_regex() -> String {
         r#"(?<func>\bfunc\b)"#, // func
         r#"(?P<at_decl_with_params>@.+?\(.*?\))"#, // @decl()
         r#"(?P<at_decl>@.*)"#, // @decl
-        r#"(?P<t_i32>\bi32\b)"#, // i32 (t¥ = type)
+        r#"(?P<t_i32>\bi32\b)"#, // i32 (t = type)
         r#"(?P<t_i64>\bi64\b)"#, // i36
         r#"(?P<t_f32>\bf32\b)"#, // f32
         r#"(?P<t_f64>\bf64\b)"#, // f64

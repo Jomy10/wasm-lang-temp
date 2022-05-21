@@ -81,3 +81,39 @@ fn test_func_with_params() {
     assert_eq!(tokens, expected_tokens);
 }
 
+#[test]
+fn test_var_decl() {
+    let source_code = "var m = 6";
+    let tokens = tokenize(source_code);
+    let expected = vec![
+        Token::new("var", (0,3)),
+        Token::new("ident", (4,5)),
+        Token::new("equal_sign", (6,7)),
+        Token::new("int_literal", (8,9)),
+    ];
+
+    assert_eq!(tokens, expected);
+}
+
+#[test]
+fn test_func_with_return_value() {
+    let source_code = r#"pub func someFunc(field: i32) { return 5 }"#;
+
+    let tokens = tokenize(source_code);
+    let expected_tokens = Vec::from([
+        Token::new("pub", (0,3)),
+        Token::new("func", (4, 8)),
+        Token::new("ident", (9, 17)),
+        Token::new("open_bracket", (17,18)),
+        Token::new("ident", (18,23)),
+        Token::new("colon", (23,24)),
+        Token::new("type", (25,28)),
+        Token::new("closed_bracket", (28,29)),
+        Token::new("open_curly_bracket", (30, 31)),
+        Token::new("return", (33, 39)),
+        Token::new("int_literal", (41, 42)),
+        Token::new("closed_curly_bracket", (43,44)),
+    ]);
+
+    assert_eq!(tokens, expected_tokens);
+}

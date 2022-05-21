@@ -5,9 +5,7 @@
 
 set -e
 
-cd lexer && cargo test
-cd ../parser && cargo test
-cd ../codegen && cargo test
+cd parser && cargo test
+cd ../compiler && cargo test
 cd s-expr-formatter && swift test
-cd ../../cli && cargo test
-
+cd ..

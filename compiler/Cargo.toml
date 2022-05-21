@@ -6,6 +6,7 @@ authors = ["Jonas Everaert"]
 
 [dependencies]
 parser = { path = "../parser" }
+concat-string = "1.0.1"
 
 [build-dependencies]
 serde = { version = "1.0.136", features = ["derive"] }

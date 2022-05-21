@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::iter::Peekable;
+use std::rc::Rc;
 use std::slice::Iter;
 
 use crate::lexer::Token;
@@ -19,7 +20,6 @@ pub fn parse<'a>(tokens: &'a Vec<Token>, source: &'a str, filename: &str) -> Vec
 
 /// Parse a token and return a `Node`
 fn parse_token<'a>(token: &Token, source: &'a str, tokens: &mut Peekable<Iter<'a, Token>>, filename: &str, meta: Option<HashMap<String, String>>) -> Node<'a> {
-    println!("Parsing token {:?}", token);
     match token.name {
         "pub" => {
             // Tokens that can follow `pub`
@@ -40,7 +40,17 @@ fn parse_token<'a>(token: &Token, source: &'a str, tokens: &mut Peekable<Iter<'a
             let is_pub = if &is_pub == "true" { true } else { false };
             parse_func(is_pub, token, source, tokens, filename)
         },
-        _ => unimplemented!("Token {} is not implemented", token.name)
+        "var" => {
+            parse_var(token, source, tokens, filename)
+        },
+        "return" => {
+            if peek_token(tokens, "closed_curly_bracket") {
+                "".to_string;
+            } else {
+                
+            }
+        }
+        _ => panic!("Token {} was not expected. This is a bug in the parser, please open an issue. Happened in parser.rs at line {}", token.name, line!())
     }
 }
 
@@ -78,32 +88,95 @@ fn parse_func<'a>(public: bool, token: &Token, source: &'a str, tokens: &mut Pee
     let _ = expect_token(tokens.next().unwrap(), "closed_bracket");
     
     let _ = expect_token(tokens.next().unwrap(), "open_curly__bracket");
-    // TODO: function body
-    let _ = expect_token(tokens.next().unwrap(), "closed_curly_bracket");
+    
+    let mut body: Vec<Node> = Vec::new();
+    if peek_token(tokens, "closed_curly_bracket") {
+        let _ = tokens.next();
+    } else {
+        // Function has a body
+        let mut nested_cur_brac = 0;
+        while let Some(token) = tokens.next()  {
+            if token.name == "closed_curly_bracket" {
+                if nested_cur_brac == 0 { 
+                    break; 
+                } else {
+                    nested_cur_brac -= 1;
+                }
+            }
+            if token.name == "open_curly_bracket" {
+                nested_cur_brac += 1;
+            }
+            body.push(parse_token(token, source, tokens, filename, None));
+        }
+    }
 
     return Node::Func { 
         ext_name: &source[ident_token.range.0..ident_token.range.1], 
         int_name: concat_string!(filename, "$", token.range.0.to_string(), "$", &source[ident_token.range.0..ident_token.range.1]), 
         public,
-        body: Vec::new(),
+        body,
         params,
     };
 }
 
+/// Parse a variable declaration
+/// `var m: i32 = 5` `var m = 5`
+fn parse_var<'a>(token: &Token, source: &'a str, tokens: &mut Peekable<Iter<'a, Token>>, filename: &str) -> Node<'a> {
+    let name = expect_token(tokens.next().unwrap(), "ident").unwrap();
+    if peek_token(tokens, "colon") {
+        let _ = tokens.next();
+        let t = expect_token(tokens.next().unwrap(), "type").unwrap();
+        let _ = expect_token(tokens.next().unwrap(), "equal_sign").unwrap();
+        let (value, _) = expect_token_of(tokens.next().unwrap(), vec!["int_literal"]).unwrap(); // TODO: allow other things than int
+
+        let t = match &source[t.range.0..t.range.1] {
+            "i32" => Type::i32,
+            _ => unimplemented!()
+        };
+        
+        return Node::VarDecl { 
+            ext_name: &source[name.range.0..name.range.1], 
+            int_name: format!("{}${}${}", filename, token.range.0, &source[name.range.0..name.range.1]), 
+            t, 
+            initial_value: Some(Rc::new(Node::Literal(LiteralValue::new(&source[value.range.0..value.range.1], t))))
+        }
+    } else {
+        // TODO: handle if no = present; `var m` <- no initial value (todo: what happens in wasm?)
+        let _ = expect_token(tokens.next().unwrap(), "equal_sign").unwrap();
+        let (value, t) = expect_token_of(tokens.next().unwrap(), vec!["int_literal"]).unwrap(); // TODO: allow other things than int
+
+        // infer type
+        let inferred_type: Type = if &t == "int_literal" {
+            Type::i32
+        } else {
+            panic!("Couldn't infer type (TODO: line number, etc.)");
+        };
+
+        return Node::VarDecl { 
+            ext_name: &source[name.range.0..name.range.1], 
+            int_name: format!("{}${}${}", filename, token.range.0, &source[name.range.0..name.range.1]), 
+            t: inferred_type, 
+            initial_value: Some(Rc::new(Node::Literal(LiteralValue::new(&source[value.range.0..value.range.1], inferred_type))))
+        }
+    }
+}
+
 #[allow(unused)]
-/// Return the token when the token matches one of the expected outcomes, return an error message otherwise
-fn expect_token_of<'a>(token: &'a Token, expected: Vec<&str>) -> Result<&'a Token<'a>, String> {
+/// Return the token when the token matches one of the expected outcomes and what matched, return an error message otherwise
+fn expect_token_of<'a>(token: &'a Token, expected: Vec<&str>) -> Result<(&'a Token<'a>, String), String> {
     let mut err = true;
+    let mut matched = "";
     for expected in &expected {
         if token.name == *expected {
             err = false;
+            matched = *expected;
         }
     }
     
     if err {
         Err(format!("Expected {:?}, got {:?}", expected, token))
     } else {
-        Ok(token)
+        Ok((token, matched.to_string()))
     }
 }
 
