@@ -57,7 +57,9 @@ fn parser_regex() -> String {
         r#"(?<closed_curly_bracket>\})"#,                   // }
         r#"(?<colon>:)"#,                                   // :
         r#"(?<comma>,)"#,                                   // ,
-        r#"(?<type>\b(?:i32|i64|f32|f64)\b)"#,              // types (i32, i64, f32, f64)
+        r#"(?<arrow>->)"#,                                  // ->
+        r#"(?<plus_sign>\+)"#,                              // +
+        r#"(?<type>\b(?:i32|i64|f32|f64|Void)\b)"#,         // types (i32, i64, f32, f64)
         r#"(?<ident>\b[a-zA-Z_]+[a-zA-Z_0-9$]*\b)"#,        // identifier (someIdent, some$ident, $notIdent, _someIdent)
     ].join("|")
 }

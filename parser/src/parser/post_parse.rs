@@ -48,7 +48,7 @@ impl PostParser {
     
     fn post_parse_node(&self, node: &mut Node, current_scope: &str) {
         match node {
-            Node::Func { ext_name: _, int_name, public: _, params: _, body } => {
+            Node::Func { ext_name: _, int_name, public: _, params: _, return_type: _, body } => {
                 let mut new_scope = Scope::new(int_name);
                 new_scope.superscope = Some(self.scopes.borrow().get(current_scope).unwrap().name.clone());
                 self.scopes.borrow_mut().insert(int_name.to_string(), new_scope);

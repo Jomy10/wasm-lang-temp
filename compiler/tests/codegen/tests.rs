@@ -78,6 +78,7 @@ fn test_var_decl_with_type() {
     assert_eq!(output, expected);
 }
 
+// TODO: error handling when providing a return without return decl
 #[test]
 fn test_return_variable() {
     let source = r#"pub func someFunc() { var x = 25 return x }"#;
@@ -87,6 +88,19 @@ fn test_return_variable() {
     post_parser.post_parse(&mut parsed);
     let output = generate_wat(&parsed);
     let expected = "(export \"someFunc\" (func $main$4$someFunc))(func $main$4$someFunc (local $main$22$x i32) i32.const 25 local.set $main$22$x local.get $main$22$x )";
+    
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn test_return_decl() {
+    let source = r#"func someFunc() -> i32 { }"#;
+    let tokens = tokenize(source);
+    let mut parsed = parse(&tokens, source, "main");
+    let post_parser = PostParser::new();
+    post_parser.post_parse(&mut parsed);
+    let output = generate_wat(&parsed);
+    let expected = "(func $main$0$someFunc (result i32) )";
     
     assert_eq!(output, expected);
 }

@@ -1,4 +1,4 @@
-use parser::parser::{Node, FuncParam, LiteralValue};
+use parser::parser::{Node, FuncParam, LiteralValue, Type};
 use concat_string::concat_string;
 
 /// Insert wat code in a module
@@ -11,7 +11,7 @@ pub fn generate_wat(nodes: &Vec<Node>) -> String {
     let mut gen_source: Vec<String> = Vec::new();
 
     let mut nodes_iter = nodes.iter();
-    while let Some(node) = nodes_iter.next() {
+    while let Some(node) = nodes_iter.next() { // could be multithreaded
         gen_source.push(gen_node(&node));
     }
     return gen_source.join("")
@@ -20,11 +20,12 @@ pub fn generate_wat(nodes: &Vec<Node>) -> String {
 /// Generate wat code for a node
 fn gen_node(node: &Node) -> String {
     match node {
-        Node::Func { ext_name, int_name, public, body, params } => {
+        Node::Func { ext_name, int_name, public, body, return_type, params } => {
             Function{ 
                 external_name: ext_name.to_string(), 
                 internal_name: int_name.to_string(), 
                 is_public: *public,
+                return_type,
                 params: params.to_vec(),
                 body,
             }.build()
@@ -52,6 +53,9 @@ fn gen_node(node: &Node) -> String {
                 }
                 LiteralValue::f64(v) => {
                     format!("f64.const {v}")
+                }
+                LiteralValue::Void => {
+                    String::new()
                 }
             }
         }
@@ -97,6 +101,7 @@ trait Buildable {
 struct Function<'a> {
     external_name: String,
     internal_name: String,
+    return_type: &'a Type,
     is_public: bool,
     params: Vec<FuncParam<'a>>,
     body: &'a Vec<Node<'a>>,
@@ -128,9 +133,15 @@ impl Buildable for Function<'_> {
                 unreachable!()
             }
         }).collect::<Vec<String>>().join("");
+        let result = if self.return_type != &Type::Void {
+            let ty = self.return_type;
+            format!("(result {ty})")
+        } else {
+            String::new()
+        };
         
         format!(
-            "{export}(func ${int_name} {params}{locals} {body})"
+            "{export}(func ${int_name} {params}{result}{locals} {body})"
         )
     }
 }

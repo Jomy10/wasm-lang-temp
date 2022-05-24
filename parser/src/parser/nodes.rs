@@ -11,6 +11,7 @@ pub enum Node<'a> {
         public: bool,
         /// The function parameters
         params: Vec<FuncParam<'a>>, 
+        return_type: Type,
         /// Function body
         body: Vec<Node<'a>>
     },
@@ -41,7 +42,8 @@ pub enum LiteralValue<'a> {
     i32(&'a str),
     i64(&'a str),
     f32(&'a str),
-    f64(&'a str)
+    f64(&'a str),
+    Void,
 }
 
 impl<'a> LiteralValue<'a> {
@@ -51,6 +53,7 @@ impl<'a> LiteralValue<'a> {
             Type::i64 => todo!(),
             Type::f32 => todo!(),
             Type::f64 => todo!(),
+            Type::Void => Self::Void,
         }
     }
 }
@@ -71,7 +74,8 @@ pub enum Type {
     i32,
     i64,
     f32,
-    f64
+    f64,
+    Void,
 }
 
 impl Type {
@@ -90,6 +94,9 @@ impl Display for Type {
             Self::i64 => "i64",
             Self::f32 => "f32",
             Self::f64 => "f64",
+            Self::Void => "()",
         })
     }
 }
+
+

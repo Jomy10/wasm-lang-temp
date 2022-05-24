@@ -89,6 +89,14 @@ fn parse_func<'a>(public: bool, token: &Token, source: &'a str, tokens: &mut Pee
 
     let _ = expect_token(tokens.next().unwrap(), "closed_bracket");
     
+    let return_type: Type = if peek_token(tokens, "arrow") {
+        let _ = tokens.next(); // ->
+        let r#type = expect_token(tokens.next().unwrap(), "type").expect("Expected a type after ->");
+        parse_type(r#type, source)
+    } else {
+        Type::Void
+    };
+    
     let _ = expect_token(tokens.next().unwrap(), "open_curly__bracket");
     
     let func_name = &source[ident_token.range.0..ident_token.range.1];
@@ -118,8 +126,9 @@ fn parse_func<'a>(public: bool, token: &Token, source: &'a str, tokens: &mut Pee
         ext_name: func_name, 
         int_name: concat_string!(filename, "$", token.range.0.to_string(), "$", func_name), 
         public,
-        body,
         params,
+        return_type,
+        body,
     };
 }
 
@@ -185,7 +194,7 @@ fn parse_int_literal<'a>(token: &Token, source: &'a str) -> Node<'a> {
 }
 
 fn parse_ident<'a>(token: &Token, source: &'a str, meta: &Option<HashMap<String, String>>) -> Node<'a> {
-    // TODO: check wether is ident
+    // TODO: check wether is variable
     if let Some(meta) = meta {
         Node::Variable {
             name: &source[token.range.0..token.range.1],
@@ -195,6 +204,11 @@ fn parse_ident<'a>(token: &Token, source: &'a str, meta: &Option<HashMap<String,
     } else {
         panic!("Variable can only be used inside of a function")
     }
+}
+
+/// Parse token "type" (e.g. i32, i64, etc.)
+fn parse_type(token: &Token, source: &str) -> Type {
+    return Type::from(&source[token.range.0..token.range.1]);
 }
 
 #[allow(unused)]

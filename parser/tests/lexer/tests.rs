@@ -117,3 +117,15 @@ fn test_func_with_return_value() {
 
     assert_eq!(tokens, expected_tokens);
 }
+
+#[test]
+fn test_return_type() {
+    let source_code = r#"-> i32"#;
+    let tokens = tokenize(source_code);
+    let expected_tokens = Vec::from([
+        Token::new("arrow", (0, 2)),
+        Token::new("type", (3, 6)),
+    ]);
+    
+    assert_eq!(tokens, expected_tokens);
+}

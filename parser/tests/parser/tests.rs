@@ -14,6 +14,7 @@ fn test_func() {
             int_name: "main$0$someFunc".to_string(), 
             body: Vec::new(),
             public: false,
+            return_type: Type::Void,
             params: Vec::new(), 
         }
     ]);
@@ -31,7 +32,8 @@ fn test_pub_func() {
             ext_name: "someFunc", 
             int_name: "main$4$someFunc".to_string(), 
             body: Vec::new(),
-            public: true, 
+            public: true,
+            return_type: Type::Void,
             params: Vec::new()
         }
     ]);
@@ -57,6 +59,7 @@ fn test_func_with_param() {
                     t: Type::i32
                 }
             ],
+            return_type: Type::Void,
         }
     ]);
 
@@ -86,6 +89,7 @@ fn test_func_with_params() {
                     t: Type::i32
                 }
             ],
+            return_type: Type::Void,
         }
     ]);
 
@@ -144,7 +148,8 @@ fn test_func_with_var_decl_body() {
                 },
             ],
             public: false,
-            params: Vec::new()
+            params: Vec::new(),
+            return_type: Type::Void,
         }            
     ]);
     
@@ -167,6 +172,7 @@ fn test_func_with_return() {
             ],
             public: false,
             params: Vec::new(),
+            return_type: Type::Void,
         },
     ];
     
@@ -198,7 +204,8 @@ fn test_func_with_var_return() {
                 )
             ],
             public: false,
-            params: Vec::new()
+            params: Vec::new(),
+            return_type: Type::Void,
         }            
     ]);
     
@@ -209,6 +216,7 @@ fn test_func_with_var_return() {
 ////////////////////////
 // post parsing tests //
 ////////////////////////
+// TODO: move
 use std::collections::HashMap;
 
 #[test]
@@ -239,7 +247,8 @@ fn test_post_parse_nodes() {
                 )
             ],
             public: false,
-            params: Vec::new()
+            params: Vec::new(),
+            return_type: Type::Void,
         }            
     ]);
     
@@ -273,3 +282,25 @@ fn test_post_parse_scopes() {
     
     assert_eq!(scopes, &expected)
 } 
+
+#[test]
+fn test_func_with_return_type() {
+    let source = r#"func someFunc() -> i32 { }"#;
+    let tokens = tokenize(source);
+    let mut parsed = parse(&tokens, source, "main");
+    let post_parser = PostParser::new();
+    post_parser.post_parse(&mut parsed);
+    
+    let expected = Vec::from([
+        Node::Func {
+            ext_name: "someFunc",
+            int_name: String::from("main$0$someFunc"),
+            public: false,
+            params: Vec::new(),
+            return_type: Type::i32,
+            body: Vec::new(),
+        }
+    ]);
+    
+    assert_eq!(parsed, expected)
+}
