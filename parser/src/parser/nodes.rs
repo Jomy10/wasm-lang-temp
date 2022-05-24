@@ -23,10 +23,16 @@ pub enum Node<'a> {
         // Initial value can be a constant or a function or any other statement
         initial_value: Option<Rc<Node<'a>>>
     },
+    /// A variable ident.
+    Variable {
+        name: &'a str,
+        function: String,
+        /// Will always hold a value after post parse
+        int_name: Option<String>,
+    },
     Literal(LiteralValue<'a>),
-    Return {
-        value: Option<Rc<Node<'a>>>
-    }
+    /// A return statement with an optional return value
+    Return(Option<Rc<Node<'a>>>)
 }
 
 #[allow(non_camel_case_types)]

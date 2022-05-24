@@ -1,5 +1,5 @@
 use compiler::codegen::gen_wat::generate_wat;
-use parser::{lexer::tokenize, parser::parse};
+use parser::{lexer::*, parser::*};
 
 #[test]
 fn test_func() {
@@ -62,7 +62,7 @@ fn test_var_decl() {
     let tokens = tokenize(source);
     let parsed = parse(&tokens, source, "main");
     let output = generate_wat(&parsed);
-    let expected = "(func $main$0$someFunc (local $main$18$x i32) i32.const 24 local.set $main$18$x)";
+    let expected = "(func $main$0$someFunc (local $main$18$x i32) i32.const 24 local.set $main$18$x )";
 
     assert_eq!(output, expected);
 }
@@ -73,7 +73,7 @@ fn test_var_decl_with_type() {
     let tokens = tokenize(source);
     let parsed = parse(&tokens, source, "main");
     let output = generate_wat(&parsed);
-    let expected = "(func $main$0$someFunc (local $main$18$x i32) i32.const 25 local.set $main$18$x)";
+    let expected = "(func $main$0$someFunc (local $main$18$x i32) i32.const 25 local.set $main$18$x )";
 
     assert_eq!(output, expected);
 }
@@ -82,9 +82,11 @@ fn test_var_decl_with_type() {
 fn test_return_variable() {
     let source = r#"pub func someFunc() { var x = 25 return x }"#;
     let tokens = tokenize(source);
-    let parsed = parse(&tokens, source, "main");
+    let mut parsed = parse(&tokens, source, "main");
+    let post_parser = PostParser::new();
+    post_parser.post_parse(&mut parsed);
     let output = generate_wat(&parsed);
-    let expected = "(func $main$4$someFunc (local $main$18$x i32) i32.const 25 local.set $main$18$x local.get $main$18$x)";
+    let expected = "(export \"someFunc\" (func $main$4$someFunc))(func $main$4$someFunc (local $main$22$x i32) i32.const 25 local.set $main$22$x local.get $main$22$x )";
     
     assert_eq!(output, expected);
 }

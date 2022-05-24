@@ -1,5 +1,10 @@
-use parser::parser::{Node, FuncParam, Type, LiteralValue};
+use parser::parser::{Node, FuncParam, LiteralValue};
 use concat_string::concat_string;
+
+/// Insert wat code in a module
+pub fn insert_into_mod(wat: &str) -> String {
+    format!("(module {wat})")
+} 
 
 /// Generate wat code from nodes
 pub fn generate_wat(nodes: &Vec<Node>) -> String {
@@ -24,19 +29,18 @@ fn gen_node(node: &Node) -> String {
                 body,
             }.build()
         }
-        Node::VarDecl { ext_name: _, int_name, t: ty, initial_value } => {
+        Node::VarDecl { ext_name: _, int_name, t: _, initial_value } => {
             if let Some(initial_value) = initial_value {
                 VarAssign{
                     int_name,
-                    ty,
                     value: gen_node(initial_value),
                 }.build()
             } else {
                 "".to_string()
             }
         }
-        Node::Literal(literalVal) => {
-            match literalVal {
+        Node::Literal(literal_val) => {
+            match literal_val {
                 LiteralValue::i32(v) => {
                     format!("i32.const {v}")
                 }
@@ -50,6 +54,20 @@ fn gen_node(node: &Node) -> String {
                     format!("f64.const {v}")
                 }
             }
+        }
+        Node::Return(value) => {
+            if let Some(value) = value {
+                gen_node(value)
+            } else {
+                String::from("") // TODO: return early
+            }
+        }
+        Node::Variable { name: _, function: _, int_name } => {
+            // TODO: after parsing, do another round to add the variable declaration to the variable
+            // TODO: generate variable (local.get)
+            VarGet {
+                int_name: &int_name.as_ref().unwrap()
+            }.build()
         }
     }
 }
@@ -120,7 +138,6 @@ impl Buildable for Function<'_> {
 /// `var a = a`
 struct VarAssign<'a> {
     int_name: &'a str,
-    ty: &'a Type,
     value: String,
 }
 
@@ -130,7 +147,20 @@ impl Buildable for VarAssign<'_> {
         let int_name = self.int_name;
         
         format!(
-            "{value} local.set ${int_name}"
+            "{value} local.set ${int_name} "
+        )
+    }
+}
+
+/// Get a variable's value
+struct VarGet<'a> {
+    int_name: &'a str,
+}
+
+impl Buildable for VarGet<'_> {
+    fn build(&self) -> String {
+        format!(
+            "local.get ${} ", self.int_name
         )
     }
 }

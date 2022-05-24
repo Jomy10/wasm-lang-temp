@@ -44,11 +44,13 @@ fn parse_token<'a>(token: &Token, source: &'a str, tokens: &mut Peekable<Iter<'a
             parse_var(token, source, tokens, filename)
         },
         "return" => {
-            if peek_token(tokens, "closed_curly_bracket") {
-                "".to_string;
-            } else {
-                
-            }
+            parse_return(source, tokens, filename, &meta)
+        },
+        "int_literal" => {
+            parse_int_literal(token, source)
+        },
+        "ident" => {
+            parse_ident(token, source, &meta)
         }
         _ => panic!("Token {} was not expected. This is a bug in the parser, please open an issue. Happened in parser.rs at line {}", token.name, line!())
     }
@@ -89,6 +91,8 @@ fn parse_func<'a>(public: bool, token: &Token, source: &'a str, tokens: &mut Pee
     
     let _ = expect_token(tokens.next().unwrap(), "open_curly__bracket");
     
+    let func_name = &source[ident_token.range.0..ident_token.range.1];
+    
     let mut body: Vec<Node> = Vec::new();
     if peek_token(tokens, "closed_curly_bracket") {
         let _ = tokens.next();
@@ -106,13 +110,13 @@ fn parse_func<'a>(public: bool, token: &Token, source: &'a str, tokens: &mut Pee
             if token.name == "open_curly_bracket" {
                 nested_cur_brac += 1;
             }
-            body.push(parse_token(token, source, tokens, filename, None));
+            body.push(parse_token(token, source, tokens, filename, Some(HashMap::from([("function".to_string(), func_name.to_string())]))));
         }
     }
 
     return Node::Func { 
-        ext_name: &source[ident_token.range.0..ident_token.range.1], 
-        int_name: concat_string!(filename, "$", token.range.0.to_string(), "$", &source[ident_token.range.0..ident_token.range.1]), 
+        ext_name: func_name, 
+        int_name: concat_string!(filename, "$", token.range.0.to_string(), "$", func_name), 
         public,
         body,
         params,
@@ -158,6 +162,38 @@ fn parse_var<'a>(token: &Token, source: &'a str, tokens: &mut Peekable<Iter<'a, 
             t: inferred_type, 
             initial_value: Some(Rc::new(Node::Literal(LiteralValue::new(&source[value.range.0..value.range.1], inferred_type))))
         }
+    }
+}
+
+
+fn parse_return<'a>(source: &'a str, tokens: &mut Peekable<Iter<'a, Token>>, filename: &str, meta: &Option<HashMap<String, String>>) -> Node<'a> {
+    if peek_token(tokens, "closed_curly_bracket") {
+        Node::Return(None)
+    } else {
+        Node::Return (
+            Some(Rc::new(
+                parse_token(tokens.next().unwrap(), source, tokens, filename, meta.clone())
+            ))
+        )
+    }
+}
+
+fn parse_int_literal<'a>(token: &Token, source: &'a str) -> Node<'a> {
+    Node::Literal(
+        LiteralValue::i32(&source[token.range.0..token.range.1])
+    )
+}
+
+fn parse_ident<'a>(token: &Token, source: &'a str, meta: &Option<HashMap<String, String>>) -> Node<'a> {
+    // TODO: check wether is ident
+    if let Some(meta) = meta {
+        Node::Variable {
+            name: &source[token.range.0..token.range.1],
+            function: meta.get("function").unwrap().clone(),
+            int_name: None,
+        }
+    } else {
+        panic!("Variable can only be used inside of a function")
     }
 }
 

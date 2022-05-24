@@ -110,9 +110,9 @@ fn test_func_with_return_value() {
         Token::new("type", (25,28)),
         Token::new("closed_bracket", (28,29)),
         Token::new("open_curly_bracket", (30, 31)),
-        Token::new("return", (33, 39)),
-        Token::new("int_literal", (41, 42)),
-        Token::new("closed_curly_bracket", (43,44)),
+        Token::new("return", (32, 38)),
+        Token::new("int_literal", (39, 40)),
+        Token::new("closed_curly_bracket", (41,42)),
     ]);
 
     assert_eq!(tokens, expected_tokens);
