@@ -7,6 +7,8 @@ lazy_static! {
 
 /// Tokenize source code into `Tokens` using regex (see `parser_regex`)
 pub fn tokenize(input: &str) -> Vec<Token> {
+    println!("{}", parser_regex());
+    
     let group_names: Vec<&str> = REGEX.capture_names().skip(1).map(|x| x.unwrap()).collect::<Vec<&str>>();
     
     let mut matches: Vec<Token> = vec![];
@@ -59,8 +61,13 @@ fn parser_regex() -> String {
         r#"(?<comma>,)"#,                                   // ,
         r#"(?<arrow>->)"#,                                  // ->
         r#"(?<plus_sign>\+)"#,                              // +
+        r#"(?<min_sign>-)"#,                                // -
+        r#"(?<slash_sign>\/)"#,                             // /
+        r#"(?<star_sign>\*)"#,                              // *
         r#"(?<type>\b(?:i32|i64|f32|f64|Void)\b)"#,         // types (i32, i64, f32, f64)
         r#"(?<ident>\b[a-zA-Z_]+[a-zA-Z_0-9$]*\b)"#,        // identifier (someIdent, some$ident, $notIdent, _someIdent)
+        r#"(?<other>\S+)"#,                                 // other = everything that is not specified as a token that isn't a new line or a space.
+                                                            // is used for determining unused tokens and user defined `oper`
     ].join("|")
 }
 

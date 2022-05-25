@@ -129,3 +129,65 @@ fn test_return_type() {
     
     assert_eq!(tokens, expected_tokens);
 }
+
+#[test]
+fn test_plus_sign() {
+    let source = r#"5 + a"#;
+    let tokens = tokenize(source);
+    let expected_tokens = Vec::from([
+        Token::new("int_literal", (0,1)),
+        Token::new("plus_sign", (2,3)),
+        Token::new("ident", (4,5)),
+    ]);
+    
+    assert_eq!(tokens, expected_tokens);
+}
+
+#[test]
+fn test_min_sign() {
+    let source = r#"-"#;
+    let expected = Vec::from([
+        Token::new("min_sign", (0,1))
+    ]);
+    test_tokenizing(source, &expected);
+}
+
+#[test]
+fn test_slash_sign() {
+    let source = r#"/"#;
+    let expected = Vec::from([
+        Token::new("slash_sign", (0,1))
+    ]);
+    test_tokenizing(source, &expected);
+}
+
+#[test]
+fn test_star_sign() {
+    let source = r#"*"#;
+    let expected = Vec::from([
+        Token::new("star_sign", (0,1))
+    ]);
+    test_tokenizing(source, &expected);
+}
+
+#[test]
+fn test_other_tokens() {
+    let source = "func $$$ \n$\n$";
+    let expected_tokens = Vec::from([
+        Token::new("func", (0, 4)),
+        Token::new("other", (5, 8)),
+        Token::new("other", (10, 11)),
+        Token::new("other", (12, 13)),
+    ]);
+    test_tokenizing(source, &expected_tokens);
+}
+
+// ==================================================
+// Helper functions
+// ==================================================
+
+fn test_tokenizing(source: &str, expected: &Vec<Token>) {
+    let tokens = tokenize(source);
+    assert_eq!(expected, &tokens);
+}
+
