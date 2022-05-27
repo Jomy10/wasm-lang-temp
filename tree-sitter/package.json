@@ -1,0 +1,13 @@
+{
+  "name": "tree-sitter-wasm_lang",
+  "version": "0.0.1",
+  "author": "Jonas Everaert",
+  "description": null,
+  "license": "MIT",
+  "main": "bindings/node",
+  "repository": null,
+  "scripts": {},
+  "dependencies": {
+    "nan": "^2.16.0"
+  }
+}

@@ -7,8 +7,6 @@ lazy_static! {
 
 /// Tokenize source code into `Tokens` using regex (see `parser_regex`)
 pub fn tokenize(input: &str) -> Vec<Token> {
-    println!("{}", parser_regex());
-    
     let group_names: Vec<&str> = REGEX.capture_names().skip(1).map(|x| x.unwrap()).collect::<Vec<&str>>();
     
     let mut matches: Vec<Token> = vec![];

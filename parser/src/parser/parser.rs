@@ -204,6 +204,8 @@ fn parse_ident<'a>(token: &Token, source: &'a str, meta: &Option<HashMap<String,
     } else {
         panic!("Variable can only be used inside of a function")
     }
+    
+    // TODO: if followed by x, parse expression (same for literals)
 }
 
 /// Parse token "type" (e.g. i32, i64, etc.)
