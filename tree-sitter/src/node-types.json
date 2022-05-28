@@ -47,10 +47,6 @@
         "required": true,
         "types": [
           {
-            "type": "()",
-            "named": false
-          },
-          {
             "type": "params_decl",
             "named": true
           }
@@ -85,20 +81,27 @@
   {
     "type": "param_decl",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "ident",
-          "named": true
-        },
-        {
-          "type": "type",
-          "named": true
-        }
-      ]
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "ident",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -208,10 +211,6 @@
     "named": false
   },
   {
-    "type": "()",
-    "named": false
-  },
-  {
     "type": ")",
     "named": false
   },
@@ -273,14 +272,6 @@
   },
   {
     "type": "var",
-    "named": false
-  },
-  {
-    "type": "{",
-    "named": false
-  },
-  {
-    "type": "}",
     "named": false
   }
 ]

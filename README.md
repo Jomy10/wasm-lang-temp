@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/mozilla/grcov/branch/master/graph/badge.svg)](https://codecov.io/gh/jomy10/wasm-lang-temp)
+[![codecov](https://codecov.io/gh/mozilla/grcov/branch/master/graph/badge.svg)](https://app.codecov.io/gh/Jomy10/wasm-lang-temp)
 
 This will be a programming language that compiles to wasm and produces small file sizes, so that wasm libraries load fast on websites. It will also support interacting with Javascript and compiling for WASI.
 

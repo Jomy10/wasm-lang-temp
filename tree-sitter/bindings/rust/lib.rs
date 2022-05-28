@@ -42,8 +42,6 @@ pub const NODE_TYPES: &'static str = include_str!("../../src/node-types.json");
 
 #[cfg(test)]
 mod tests {
-    use crate::language;
-    
     #[test]
     fn test_can_load_grammar() {
         let mut parser = tree_sitter::Parser::new();

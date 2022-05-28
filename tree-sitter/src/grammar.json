@@ -62,8 +62,8 @@
                 "name": "params_decl"
               },
               {
-                "type": "STRING",
-                "value": "()"
+                "type": "SYMBOL",
+                "name": "_empty_params_decl"
               }
             ]
           }
@@ -91,8 +91,8 @@
             "type": "CHOICE",
             "members": [
               {
-                "type": "PATTERN",
-                "value": "\\{\\s*\\}"
+                "type": "SYMBOL",
+                "name": "_empty_scope"
               },
               {
                 "type": "SYMBOL",
@@ -115,6 +115,10 @@
           "name": "type"
         }
       ]
+    },
+    "_empty_scope": {
+      "type": "PATTERN",
+      "value": "\\{\\s*\\}"
     },
     "pub": {
       "type": "TOKEN",
@@ -185,8 +189,12 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "ident"
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "ident"
+          }
         },
         {
           "type": "SYMBOL",
@@ -194,12 +202,16 @@
         }
       ]
     },
+    "_empty_params_decl": {
+      "type": "STRING",
+      "value": "()"
+    },
     "body": {
       "type": "SEQ",
       "members": [
         {
-          "type": "STRING",
-          "value": "{"
+          "type": "SYMBOL",
+          "name": "_o_curly"
         },
         {
           "type": "REPEAT",
@@ -209,10 +221,24 @@
           }
         },
         {
-          "type": "STRING",
-          "value": "}"
+          "type": "SYMBOL",
+          "name": "_c_curly"
         }
       ]
+    },
+    "_o_curly": {
+      "type": "TOKEN",
+      "content": {
+        "type": "STRING",
+        "value": "{"
+      }
+    },
+    "_c_curly": {
+      "type": "TOKEN",
+      "content": {
+        "type": "STRING",
+        "value": "}"
+      }
     },
     "var_decl": {
       "type": "SEQ",
@@ -318,8 +344,12 @@
           "value": ":"
         },
         {
-          "type": "SYMBOL",
-          "name": "type"
+          "type": "FIELD",
+          "name": "type",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type"
+          }
         }
       ]
     },
