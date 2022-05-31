@@ -102,6 +102,63 @@ fn test_return_but_no_value_returned() {
     test_compiler(source, expected);
 }
 
+#[test]
+fn test_mul() {
+    let source = r#"func someFunc() -> i32 { return 5 * 6 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const 5 i32.const 6 i32.mul return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_div() {
+    let source = r#"func someFunc() -> i32 { return 5 / 6 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const 5 i32.const 6 i32.div_s return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_add() {
+    let source = r#"func someFunc() -> i32 { return 5 + 6 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const 5 i32.const 6 i32.add return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_sub() {
+    let source = r#"func someFunc() -> i32 { return 5 - 6 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const 5 i32.const 6 i32.sub return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_math_add_and_mul() {
+    let source = r#"func someFunc() -> i32 { return 5 - 6 * 7 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const 5 i32.const 6 i32.const 7 i32.mul i32.sub return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn tets_math_with_brackets() {
+    let source = r#"func someFunc() -> i32 { return (5 - 6) * 7 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const 5 i32.const 6 i32.sub i32.const 7 i32.mul return\s*\)"#;
+
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_unary_op_neg() {
+    let source = r#"func someFunc() -> i32 { return -8 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const -1 i32.const 8 i32.mul return\s*\)"#;
+
+    test_compiler(source, expected);
+    
+}
+
 // ============================================================================
 // Helper functions
 // ============================================================================
@@ -113,7 +170,7 @@ fn test_compiler(source: &str, expected: &str) {
         .set_language(language())
         .expect("Error loading language");
     let tree = parser.parse(source, None).unwrap();
-    let output = generate_wat(&tree, &source);
+    let output = generate_wat(&tree, &source, true);
     
     let re = Regex::new(&concat_string!(r"\(module ", expected, r"\)")).unwrap();
     println!("Output: {}", output);
@@ -121,6 +178,7 @@ fn test_compiler(source: &str, expected: &str) {
     assert!(re.is_match(&output));
 }
 
+// TODO: also compile to wasm and test
 /// Simply compiles the source code. Used when testing wheter a function compiles or fails to compile.
 fn test_compiles(source: &str) {
     let mut parser = Parser::new();
@@ -128,7 +186,7 @@ fn test_compiles(source: &str) {
         .set_language(language())
         .expect("Error loading language");
     let tree = parser.parse(source, None).unwrap();
-    let output = generate_wat(&tree, &source);
+    let output = generate_wat(&tree, &source, true);
     
     println!("output: {}", output);
 }

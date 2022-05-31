@@ -219,3 +219,129 @@ func someFunc() -> i32 { return 1 }
         )
     )
 )
+
+===============
+unary precedence
+===============
+
+func s() { return - a * b }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (body
+            (return
+                (binary_expr
+                    (unary_expr 
+                        (ident)
+                    )
+                    (ident)
+                )
+            )
+        )
+    )
+)
+
+=================
+binary precedence
+=================
+
+func s() { return a * b * d }
+
+---
+
+(program
+    (func_decl 
+        (ident)
+        (body
+            (return
+                 (binary_expr
+                    (binary_expr
+                        (ident)
+                        (ident)
+                    )
+                    (ident)
+                )      
+            )
+        )
+    )
+)
+
+=======================
+mixed binary precedence
+=======================
+
+func s() {
+    return a + b * c
+}
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (body
+            (return
+                (binary_expr
+                    (ident)
+                    (binary_expr
+                        (ident)
+                        (ident)
+                    )
+                )
+            )
+        )
+    )
+)
+
+=========================
+binary precedence level 2
+=========================
+
+func s() { return a * b / 1 }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (body
+            (return
+                (binary_expr
+                    (binary_expr
+                        (ident)
+                        (ident)
+                    )
+                    (int_literal)
+                )
+            )
+        )
+    )
+)
+
+======================
+expression with parens
+======================
+
+func s() { return (a - 5) * 6 }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (body
+            (return
+                (binary_expr
+                    (binary_expr
+                        (ident)
+                        (int_literal)
+                    )
+                    (int_literal)
+                )
+            )
+        )
+    )
+)

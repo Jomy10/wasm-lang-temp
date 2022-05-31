@@ -71,13 +71,20 @@ enum MetaTag {
     // TODO: rename to eval type, because this is used for anything that should return a value (e.g. return statements, var decl, ...)
     VarDeclType,
     FuncReturnType,
+    GenMod
 }
 
 /// Generate wat code from nodes
-pub fn generate_wat(tree: &Tree, source: &str) -> String {
+pub fn generate_wat(tree: &Tree, source: &str, gen_mod: bool) -> String {
     let mut scope_table: HashMap<usize, Scope> = HashMap::new();
     
-    gen_node(&tree.root_node(), source, &mut scope_table, 0, &None).source.unwrap()
+    let meta = if gen_mod {
+        Some(HashMap::from([(MetaTag::GenMod, String::from("true"))]))
+    } else {
+        None
+    };
+    
+    gen_node(&tree.root_node(), source, &mut scope_table, 0, &meta).source.unwrap()
 }
 
 /// Generate wat code for a node
@@ -106,7 +113,15 @@ fn gen_node(
                 i += 1;
             }
             
-            Source::new(concat_string!("(module ", generated_source.join(" "), ")"))
+            if let Some(meta) = meta.as_ref() {
+                if let Some(add_mod) = meta.get(&MetaTag::GenMod) {
+                    if add_mod == "true" {
+                        return Source::new(concat_string!("(module ", generated_source.join(" "), ")"));
+                    }
+                }
+            }
+            
+            return Source::new(generated_source.join(" "));
         }
         "func_decl" => {
             // Change scope
@@ -265,11 +280,6 @@ fn gen_node(
                 format!("(local ${} {}){extra_locals}", int_name, ty),
             )
         }
-        "int_literal" => {
-            let int = &source[node.range().start_byte..node.range().end_byte];
-            let ty = meta.as_ref().unwrap().get(&MetaTag::VarDeclType).unwrap();
-            Source::new(format!("{}.const {}", ty, int))
-        }
         "return" => {
             return if let Some(source_node) = node.child_by_field_name("value") {
                 // Check if a value is being returned, or it is an empty return stmt
@@ -308,6 +318,11 @@ fn gen_node(
                 Source::new("return".to_string())
             };
         }
+        "int_literal" => {
+            let int = &source[node.range().start_byte..node.range().end_byte];
+            let ty = meta.as_ref().unwrap().get(&MetaTag::VarDeclType).unwrap();
+            Source::new(format!("{}.const {}", ty, int))
+        }
         "ident" => {
             if meta.as_ref().unwrap().get(&MetaTag::VarDeclType).is_some() {
                 // Ident should be used to return a value
@@ -317,6 +332,73 @@ fn gen_node(
                 Source::new(format!("local.get {}", concat_string!("$", id.to_string(), "$", name)))
             } else {
                 panic!("Unexpected/Unhandeled ident")
+            }
+        }
+        "binary_expr" => {
+            let lhs = node.child(0).unwrap();
+            let op = node.child(1).unwrap();
+            let rhs = node.child(2).unwrap();
+
+            let src = &source[op.range().start_byte..op.range().end_byte];
+            
+            let ty = meta.as_ref().unwrap().get(&MetaTag::VarDeclType).unwrap();
+            
+            let l = gen_node(&lhs, source, scope_table, current_scope, meta);
+            let r = gen_node(&rhs, source, scope_table, current_scope, meta);
+            let (l_code, l_locals) = l.sources();
+            let (r_code, r_locals) = r.sources();
+            let l_code = l_code.as_ref().unwrap();
+            let r_code = r_code.as_ref().unwrap();
+            let l_locals: &str = l_locals.as_ref().map(|s| s.as_str()).unwrap_or("");
+            let r_locals: &str = r_locals.as_ref().map(|s| s.as_str()).unwrap_or("");
+            
+            match src {
+                "*" => Source::new_mixed(
+                    format!("{} {} {}.mul", l_code, r_code, ty),
+                    concat_string!(l_locals, r_locals),
+                ),
+                "/" => {
+                    let div = if ty == "i32" {
+                        "div_s"
+                    } else { // f
+                        "div"
+                    };
+                    
+                    Source::new_mixed(
+                        format!("{} {} {}.{}", l_code, r_code, ty, div),
+                        concat_string!(l_locals, r_locals),
+                    )
+                },
+                "+" => Source::new_mixed(
+                    format!("{} {} {}.add", l_code, r_code, ty),
+                    concat_string!(l_locals, r_locals),
+                ),
+                "-" => Source::new_mixed(
+                    format!("{} {} {}.sub", l_code, r_code, ty),
+                    concat_string!(l_locals, r_locals),
+                ),
+                _ => panic!("Unknown binary operator {}", src)
+            }
+        }
+        "unary_expr" => {
+            let op = node.child(0).unwrap();
+            let rhs = node.child(1).unwrap();
+
+            let src = &source[op.range().start_byte..op.range().end_byte];
+            
+            let ty = meta.as_ref().unwrap().get(&MetaTag::VarDeclType).unwrap();
+            
+            let r = gen_node(&rhs, source, scope_table, current_scope, meta);
+            let (r_code, r_locals) = r.sources();
+            let r_code = r_code.as_ref().unwrap();
+            let r_locals: &str = r_locals.as_ref().map(|s| s.as_str()).unwrap_or("");
+            
+            match src {
+                "-" => Source::new_mixed(
+                    format!("{}.const -1 {} {}.mul", ty, r_code, ty),
+                    r_locals.to_string(),
+                ),
+                _ => panic!("Unknwon unary operator")
             }
         }
         _ => panic!("Unhandled node: {} - {:?}", node.kind(), node)

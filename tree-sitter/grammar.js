@@ -25,15 +25,15 @@ module.exports = grammar({
     _empty_scope: _ => /\{\s*\}/,
     pub: _ => token('pub'),
     
-    params_decl: $ => seq($._o_brack, sepBy($._comma, $.param_decl), optional($._comma), $._c_brack),
+    params_decl: $ => seq($._o_paren, sepBy($._comma, $.param_decl), optional($._comma), $._c_paren),
     param_decl: $ => seq(field('name', $.ident), $._type_decl),
     _empty_params_decl: _ => '()',
 
     body: $ => seq($._o_curly, repeat($._statement), $._c_curly),
     _o_curly: _ => token('{'),
     _c_curly: _ => token('}'),
-    _o_brack: _ => token('('),
-    _c_brack: _ => token(')'),
+    _o_paren: _ => token('('),
+    _c_paren: _ => token(')'),
     _colon: _ => token(':'),
     _comma: _ => token(','),
     
@@ -63,18 +63,24 @@ module.exports = grammar({
     _expression: $ => choice(
       $._literal_val,
       $.ident,
-      //$.unary_expression,
-      // $.binary_expression,
+      $.unary_expr,
+      $.binary_expr,
+      $._expr_with_paren,
     ),
     
-    // unary_expression: $ => choice(
-      // seq(token('-'), $._expression),
-      // // seq(token('!'), $._expression),
-    // ),
-//     
-    // binarry_expression: $ => choice(
-      // seq($._expression)
-    // ),
+    _expr_with_paren: $ => prec(3, seq($._o_paren, $._expression, $._c_paren)),
+    
+    unary_expr: $ => prec(4, choice(
+      seq(token('-'), $._expression),
+      // seq(token('!'), $._expression),
+    )),
+     
+    binary_expr: $ => choice(
+      prec.left(2, seq($._expression, token('*'), $._expression)),
+      prec.left(2, seq($._expression, token('/'), $._expression)),
+      prec.left(1, seq($._expression, token('+'), $._expression)),
+      prec.left(1, seq($._expression, token('-'), $._expression)),
+    ),
     
     // literals //
     _literal_val: $ => choice(
