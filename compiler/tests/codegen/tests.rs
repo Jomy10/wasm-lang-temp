@@ -1,10 +1,13 @@
 use compiler::codegen::gen_wat::generate_wat;
-use parser::{lexer::*, parser::*};
+use tree_sitter::Parser;
+use tree_sitter_wasm_lang::language;
+use regex::Regex;
+use concat_string::concat_string;
 
 #[test]
 fn test_func() {
     let source = r#"func someFunc() {}"#;
-    let expected = "(func $main$0$someFunc  )";
+    let expected = r#"\(func \$\d+\$someFunc\s*\)"#;
 
     test_compiler(source, expected);
 }
@@ -12,7 +15,7 @@ fn test_func() {
 #[test]
 fn test_pub_func() {
     let source = r#"pub func someFunc() {}"#;
-    let expected = r#"(export "someFunc" (func $main$4$someFunc))(func $main$4$someFunc  )"#;
+    let expected = r#"\(export "someFunc" \(func \$\d+\$someFunc\)\)\(func \$\d+\$someFunc\s+\)"#;
     
     test_compiler(source, expected);
 }
@@ -20,7 +23,7 @@ fn test_pub_func() {
 #[test]
 fn test_main_func() {
     let source = r#"pub func main() {}"#;
-    let expected = r#"(export "main" (func $main$4$main))(export "_start" (func $main$4$main))(func $main$4$main  )"#;
+    let expected = r#"\(export "main" \(func \$main\)\)\(export "_start" \(func \$main\)\)\(func \$main\s+\)"#;
     
     test_compiler(source, expected);
 }
@@ -28,7 +31,7 @@ fn test_main_func() {
 #[test]
 fn test_func_with_param() {
     let source = r#"func someFunc(param: i32) {}"#;
-    let expected = "(func $main$0$someFunc (param $main$14$param i32) )";
+    let expected = r#"\(func \$\d+\$someFunc \(param \$\d+\$param i32\)\s+\)"#;
     
     test_compiler(source, expected);
 }
@@ -36,15 +39,15 @@ fn test_func_with_param() {
 #[test]
 fn test_func_with_params() {
     let source = r#"func someFunc(param: i32, other: i32) {}"#;
-    let expected = "(func $main$0$someFunc (param $main$14$param i32)(param $main$26$other i32) )";
+    let expected = r#"\(func \$\d+\$someFunc \(param \$\d+\$param i32\)\(param \$\d+\$other i32\)\s+\)"#;
     
     test_compiler(source, expected);
 }
 
 #[test]
-fn test_var_decl() {
+fn test_var_decl_infer_type() {
     let source = r#"func someFunc() { var x = 24 }"#;
-    let expected = "(func $main$0$someFunc (local $main$18$x i32) i32.const 24 local.set $main$18$x )";
+    let expected = r#"\(func \$\d+\$someFunc \(local \$\d+\$x i32\) i32.const 24 local.set \$\d+\$x\s+\)"#;
     
     test_compiler(source, expected);
 }
@@ -52,24 +55,49 @@ fn test_var_decl() {
 #[test]
 fn test_var_decl_with_type() {
     let source = r#"func someFunc() { var x: i32 = 25 }"#;
-    let expected = "(func $main$0$someFunc (local $main$18$x i32) i32.const 25 local.set $main$18$x )";
+    let expected = r#"\(func \$\d+\$someFunc \(local \$\d+\$x i32\) i32.const 25 local.set \$\d+\$x\s+\)"#;
 
     test_compiler(source, expected);
 }
 
-// TODO: error handling when providing a return without return decl
 #[test]
 fn test_return_variable() {
-    let source = r#"pub func someFunc() { var x = 25 return x }"#;
-    let expected = "(export \"someFunc\" (func $main$4$someFunc))(func $main$4$someFunc (local $main$22$x i32) i32.const 25 local.set $main$22$x local.get $main$22$x )";
+    let source = r#"pub func someFunc() -> i32 { var x = 25 return x }"#;
+    let expected = r#"(export "someFunc" (func !fn!))(func !fn! (result i32)\s*(local !varx! i32) i32.const 25 local.set !varx! local.get !varx! return\s*)"#;
+    let expected = expected.replace("(", r"\(").replace(")", r"\)").replace("!fn!", r"\$\d+\$someFunc").replace("!varx!", r"\$\d+\$x");
+    
+    test_compiler(source, &expected);
+}
+
+#[test]
+fn test_return_int() {
+    let source = r#"func someFunc() -> i32 { return 1 }"#;
+    let expected = r#"\(func \$\d+\$someFunc\s+\(result i32\)\s+i32.const 1 return\s*\)"#;
     
     test_compiler(source, expected);
 }
 
 #[test]
-fn test_return_decl() {
+fn test_empty_return() {
+    let source = "func someFunc() { return }";
+    let expected = r#"\(func \$\d+\$someFunc\s+return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+#[should_panic(expected = "No return type declared for this function, but a value is returned")]
+fn test_no_return_but_value_returned() {
+    let source = "func someFunc() { return 5 }";
+    test_compiles(&source);
+}
+
+// TODO
+#[test]
+#[should_panic]
+fn test_return_but_no_value_returned() {
     let source = r#"func someFunc() -> i32 { }"#;
-    let expected = "(func $main$0$someFunc (result i32) )";
+    let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*\)"#;
     
     test_compiler(source, expected);
 }
@@ -78,12 +106,29 @@ fn test_return_decl() {
 // Helper functions
 // ============================================================================
 
+/// Also adds "(module)" to expected
 fn test_compiler(source: &str, expected: &str) {
-    let tokens = tokenize(source);
-    let mut parsed = parse(&tokens, source, "main");
-    let post_parser = PostParser::new();
-    post_parser.post_parse(&mut parsed);
-    let output = generate_wat(&parsed);
+    let mut parser = Parser::new();
+    parser
+        .set_language(language())
+        .expect("Error loading language");
+    let tree = parser.parse(source, None).unwrap();
+    let output = generate_wat(&tree, &source);
     
-    assert_eq!(expected, &output);
+    let re = Regex::new(&concat_string!(r"\(module ", expected, r"\)")).unwrap();
+    println!("Output: {}", output);
+    println!("Expected: {}", re);
+    assert!(re.is_match(&output));
+}
+
+/// Simply compiles the source code. Used when testing wheter a function compiles or fails to compile.
+fn test_compiles(source: &str) {
+    let mut parser = Parser::new();
+    parser
+        .set_language(language())
+        .expect("Error loading language");
+    let tree = parser.parse(source, None).unwrap();
+    let output = generate_wat(&tree, &source);
+    
+    println!("output: {}", output);
 }

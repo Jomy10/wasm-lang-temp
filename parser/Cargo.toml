@@ -1,8 +1,0 @@
-[package]
-name = "parser"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-tree-sitter-wasm-lang = { path = "../tree-sitter" }
-tree-sitter = "~0.20"
