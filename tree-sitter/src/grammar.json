@@ -595,12 +595,20 @@
         {
           "type": "SYMBOL",
           "name": "int_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "float_literal"
         }
       ]
     },
     "int_literal": {
       "type": "PATTERN",
       "value": "\\d+"
+    },
+    "float_literal": {
+      "type": "PATTERN",
+      "value": "\\d+.\\d+"
     }
   },
   "extras": [

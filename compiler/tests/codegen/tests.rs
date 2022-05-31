@@ -174,6 +174,46 @@ fn test_i64_math() {
     test_compiler(source, expected);
 }
 
+#[test]
+fn test_f32_with_int_literal() {
+    let source = r#"func someFunc() -> f32 { return 80 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result f32\)\s*f32.const 80 return\s*\)"#;
+
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_f32_with_float_literal() {
+    let source = r#"func someFunc() -> f32 { return 80.5 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result f32\)\s*f32.const 80.5 return\s*\)"#;
+
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_f32_math_derive_type() {
+    let source = r#"func someFunc() -> f32 { var a = 1.0 var b = 68.5 return a + b }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result f32\)\s*\(local \$\d+\$a f32\)\(local \$\d+\$b f32\)\s*f32.const 1.0 local.set \$\d+\$a f32.const 68.5 local.set \$\d+\$b local.get \$\d+\$a local.get \$\d+\$b f32.add return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_f32_math_explicit_type() {
+    let source = r#"func someFunc() -> f32 { var a: f32 = 1.0 var b: f32 = 68 return a + b }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result f32\)\s*\(local \$\d+\$a f32\)\(local \$\d+\$b f32\)\s*f32.const 1.0 local.set \$\d+\$a f32.const 68 local.set \$\d+\$b local.get \$\d+\$a local.get \$\d+\$b f32.add return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_i64_math_div() {
+    let source = r#"func someFunc() -> f32 { var a = 1.0 var b = 68.5 return a / b }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result f32\)\s*\(local \$\d+\$a f32\)\(local \$\d+\$b f32\)\s*f32.const 1.0 local.set \$\d+\$a f32.const 68.5 local.set \$\d+\$b local.get \$\d+\$a local.get \$\d+\$b f32.div return\s*\)"#;
+    
+    test_compiler(source, expected);
+}
+
 // ============================================================================
 // Helper functions
 // ============================================================================

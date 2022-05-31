@@ -85,8 +85,10 @@ module.exports = grammar({
     // literals //
     _literal_val: $ => choice(
       $.int_literal,
+      $.float_literal,
     ),
     int_literal: _ => /\d+/,
+    float_literal: _ => /\d+.\d+/,
   }
 });
 

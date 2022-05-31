@@ -370,3 +370,26 @@ func int64() -> i64 { var a: i64 = 5 return a }
         )
     )
 )
+
+===
+f32
+===
+
+func f32() -> f32 { var a: f32 = 5.6 return a }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (type)
+        (body
+            (var_decl
+                (ident)
+                (type)
+                (float_literal)
+            )
+            (return (ident))
+        )
+    )
+)

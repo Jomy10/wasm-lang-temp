@@ -12,6 +12,10 @@
           "named": true
         },
         {
+          "type": "float_literal",
+          "named": true
+        },
+        {
           "type": "ident",
           "named": true
         },
@@ -174,6 +178,10 @@
             "named": true
           },
           {
+            "type": "float_literal",
+            "named": true
+          },
+          {
             "type": "ident",
             "named": true
           },
@@ -204,6 +212,10 @@
       "types": [
         {
           "type": "binary_expr",
+          "named": true
+        },
+        {
+          "type": "float_literal",
           "named": true
         },
         {
@@ -254,6 +266,10 @@
             "named": true
           },
           {
+            "type": "float_literal",
+            "named": true
+          },
+          {
             "type": "ident",
             "named": true
           },
@@ -300,6 +316,10 @@
   {
     "type": "f64",
     "named": false
+  },
+  {
+    "type": "float_literal",
+    "named": true
   },
   {
     "type": "func",

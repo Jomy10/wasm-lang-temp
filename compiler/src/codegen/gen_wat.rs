@@ -100,7 +100,7 @@ fn gen_node(
             // Change scope
             let global_scope = Scope::new(node.id());
             if scope_table.insert(node.id(), global_scope).is_some() {
-                panic!("Unexpectedly found global scope twice. This is a bug in th compiler.");
+                panic!("Unexpectedly found global scope twice. This is a bug in the compiler.");
             }
             
             // Generate source for children
@@ -248,6 +248,7 @@ fn gen_node(
                 let val = node.child_by_field_name("value").expect(&format!("Couldn't infer type for {}", name));
                 match val.kind() {
                     "int_literal" => String::from("i32"),
+                    "float_literal" => String::from("f32"),
                     _ => panic!("Couldn't infer type for {}", name)
                 }
             };
@@ -318,7 +319,7 @@ fn gen_node(
                 Source::new("return".to_string())
             };
         }
-        "int_literal" => {
+        "int_literal" | "float_literal" => {
             let int = &source[node.range().start_byte..node.range().end_byte];
             let ty = meta.as_ref().unwrap().get(&MetaTag::VarDeclType).unwrap();
             Source::new(format!("{}.const {}", ty, int))
