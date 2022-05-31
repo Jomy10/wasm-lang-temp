@@ -156,7 +156,22 @@ fn test_unary_op_neg() {
     let expected = r#"\(func \$\d+\$someFunc \(result i32\)\s*i32.const -1 i32.const 8 i32.mul return\s*\)"#;
 
     test_compiler(source, expected);
-    
+}
+
+#[test]
+fn test_i64() {
+    let source = r#"func someFunc() -> i64 { return 80 }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i64\)\s*i64.const 80 return\s*\)"#;
+
+    test_compiler(source, expected);
+}
+
+#[test]
+fn test_i64_math() {
+    let source = r#"func someFunc() -> i64 { var a: i64 = 1 var b: i64 = 68 return a + b }"#;
+    let expected = r#"\(func \$\d+\$someFunc \(result i64\)\s*\(local \$\d+\$a i64\)\(local \$\d+\$b i64\)\s*i64.const 1 local.set \$\d+\$a i64.const 68 local.set \$\d+\$b local.get \$\d+\$a local.get \$\d+\$b i64.add return\s*\)"#;
+
+    test_compiler(source, expected);
 }
 
 // ============================================================================

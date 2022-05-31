@@ -1,0 +1,4 @@
+tree-sitter/bindings/** linguist-generated
+tree-sitter/binding.gyp -linguist-generated
+tree-sitter/src/parser.c -linguist-generted
+tree-sitter/src/tree_sitter/parser.h -linguist-generated

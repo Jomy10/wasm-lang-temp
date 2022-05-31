@@ -345,3 +345,28 @@ func s() { return (a - 5) * 6 }
         )
     )
 )
+
+===
+i64
+===
+
+func int64() -> i64 { var a: i64 = 5 return a }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (type)
+        (body
+            (var_decl
+                (ident)
+                (type)
+                (int_literal)
+            )
+            (return
+                (ident)
+            )
+        )
+    )
+)
