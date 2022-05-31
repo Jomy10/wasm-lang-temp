@@ -1,177 +1,332 @@
-use parser::parser::{Node, FuncParam, LiteralValue, Type};
+use tree_sitter::{Node, Tree};
 use concat_string::concat_string;
+use std::collections::HashMap;
 
-/// Insert wat code in a module
-pub fn insert_into_mod(wat: &str) -> String {
-    format!("(module {wat})")
-} 
+#[derive(Debug, PartialEq)]
+struct Scope {
+    pub id: usize,
+    pub vars: HashMap<String, usize>,
+    pub superscope: Option<usize>
+}
+
+impl Scope {
+    pub fn new(id: usize) -> Self {
+        Self {
+            id,
+            vars: HashMap::new(),
+            superscope: None,
+        }
+    }
+}
+
+/// Represents generated source code returned by `gen_node`
+struct Source {
+    /// Source code that should be inserted at the current position
+    pub source: Option<String>,
+    /// Source code that should be inserted at the top of a function
+    pub top_source: Option<String>,
+}
+
+#[allow(unused)]
+impl Source {
+    /// New source code at current position
+    pub fn new(source: String) -> Self {
+        Self { source: Some(source), top_source: None }
+    }
+    
+    pub fn new_mixed(source: String, top: String) -> Self {
+        Self { source: Some(source), top_source: Some(top) }
+    }
+    
+    pub fn new_top(top: String) -> Self {
+        Self { source: None, top_source: Some(top) }
+    }
+    
+    pub unsafe fn unwrap_source_unchecked(&self) -> &str {
+        &self.source.as_ref().unwrap_unchecked()
+    }
+    
+    pub unsafe fn unwrap_unchecked(&self) -> (&str, &str) {
+        (
+            &self.source.as_ref().unwrap_unchecked(),
+            &self.top_source.as_ref().unwrap_unchecked()
+        )
+    }
+    
+    pub unsafe fn unwrap_top_unchecked(&self) -> &str {
+        &self.top_source.as_ref().unwrap_unchecked()
+    }
+    
+    pub fn sources(&self) -> (&Option<String>, &Option<String>) {
+        (
+            &self.source,
+            &self.top_source
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+enum MetaTag {
+    /// Indicates that the following nodes will be used to assign to a variable of this type
+    // TODO: rename to eval type, because this is used for anything that should return a value (e.g. return statements, var decl, ...)
+    VarDeclType,
+    FuncReturnType,
+}
 
 /// Generate wat code from nodes
-pub fn generate_wat(nodes: &Vec<Node>) -> String {
-    let mut gen_source: Vec<String> = Vec::new();
-
-    let mut nodes_iter = nodes.iter();
-    while let Some(node) = nodes_iter.next() { // could be multithreaded
-        gen_source.push(gen_node(&node));
-    }
-    return gen_source.join("")
+pub fn generate_wat(tree: &Tree, source: &str) -> String {
+    let mut scope_table: HashMap<usize, Scope> = HashMap::new();
+    
+    gen_node(&tree.root_node(), source, &mut scope_table, 0, &None).source.unwrap()
 }
 
 /// Generate wat code for a node
-fn gen_node(node: &Node) -> String {
-    match node {
-        Node::Func { ext_name, int_name, public, body, return_type, params } => {
-            Function{ 
-                external_name: ext_name.to_string(), 
-                internal_name: int_name.to_string(), 
-                is_public: *public,
-                return_type,
-                params: params.to_vec(),
-                body,
-            }.build()
+fn gen_node(
+    node: &Node,
+    source: &str,
+    scope_table: &mut HashMap<usize, Scope>,
+    current_scope: usize,
+    meta: &Option<HashMap<MetaTag, String>>,
+) -> Source {
+    match node.kind() {
+        "program" => {
+            // Change scope
+            let global_scope = Scope::new(node.id());
+            if scope_table.insert(node.id(), global_scope).is_some() {
+                panic!("Unexpectedly found global scope twice. This is a bug in th compiler.");
+            }
+            
+            // Generate source for children
+            let child_count = node.child_count();
+            
+            let mut i = 0;
+            let mut generated_source: Vec<String> = Vec::new();
+            while i < child_count {
+                generated_source.push(gen_node(&node.child(i).unwrap(), source, scope_table, node.id(), meta).source.unwrap());
+                i += 1;
+            }
+            
+            Source::new(concat_string!("(module ", generated_source.join(" "), ")"))
         }
-        Node::VarDecl { ext_name: _, int_name, t: _, initial_value } => {
-            if let Some(initial_value) = initial_value {
-                VarAssign{
-                    int_name,
-                    value: gen_node(initial_value),
-                }.build()
+        "func_decl" => {
+            // Change scope
+            let mut scope = Scope::new(node.id());
+            scope.superscope = Some(current_scope);
+            
+            if scope_table.insert(node.id(), scope).is_some() {
+                panic!("Unexpectedly found same scope twice. This is a bug in the compiler.");
+            }
+            
+            // Func name
+            let name = node.child_by_field_name("name").unwrap();
+            let name = &source[name.range().start_byte..name.range().end_byte];
+            
+            // Params
+            let params = if let Some(params_node) = node.child_by_field_name("params") {
+                unsafe { gen_node(&params_node, source, scope_table, node.id(), meta).unwrap_top_unchecked().to_string() }
+            } else {
+                String::new()
+            };
+            
+            // Return type
+            let ty: &str;
+            let result = if let Some(return_type) = node.child_by_field_name("return_type") {
+                ty = &source[return_type.range().start_byte..return_type.range().end_byte];
+                format!("(result {})", type_to_wat(ty))
+            } else {
+                ty = "";
+                "".to_string()
+            };
+            
+            // Add return type to metadata for parsing children
+            let mut new_meta = meta.clone().unwrap_or(HashMap::<MetaTag, String>::new());
+            new_meta.insert(MetaTag::FuncReturnType, ty.to_string());
+            
+            // Parse body
+            let body: String;
+            let locals: String;
+            if let Some(body_node) = node.child_by_field_name("body") {
+                let srcs = gen_node(&body_node, source, scope_table, node.id(), &Some(new_meta));
+                let (source, _locals) = unsafe { srcs.unwrap_unchecked() };
+                locals = _locals.to_string();
+                body = source.to_string();
+            } else {
+                locals = String::new(); body = String::new();
+            }
+            
+            // generate internal name
+            let int_name = if name == "main" {
+                "main".to_string()
+            } else {
+                concat_string!(node.id().to_string(), "$", name)
+            };
+            
+            // export public function
+            let mut export = if node.child_by_field_name("pub").is_some() {
+                format!("(export \"{}\" (func ${}))", name, int_name)
             } else {
                 "".to_string()
+            };
+            
+            // add extra export for main function
+            if name == "main" {
+                // Add _start to export
+                export.push_str("(export \"_start\" (func $main))")
+            }
+            
+            Source::new(format!("{export}(func ${int_name} {params}{result}{locals} {body} )"))
+        }
+        "body" => {
+            // Generate source for children
+            let child_count = node.child_count();
+            let mut gen_source: Vec<String> = Vec::new();
+            let mut locals: Vec<String> = Vec::new();
+            let mut i = 0;
+            while i < child_count {
+                let srcs = gen_node(&node.child(i).unwrap(), source, scope_table, current_scope, meta);
+                let (source, local) = srcs.sources();
+                if let Some(source) = source { gen_source.push(source.to_string()) }
+                if let Some(local) = local { locals.push(local.to_string()) }
+                i += 1;
+            }
+            
+            Source { 
+                source: Some(gen_source.join(" ")),
+                top_source: Some(locals.join(""))
             }
         }
-        Node::Literal(literal_val) => {
-            match literal_val {
-                LiteralValue::i32(v) => {
-                    format!("i32.const {v}")
-                }
-                LiteralValue::i64(v) => {
-                    format!("i64.const {v}")
-                }
-                LiteralValue::f32(v) => {
-                    format!("f32.const {v}")
-                }
-                LiteralValue::f64(v) => {
-                    format!("f64.const {v}")
-                }
-                LiteralValue::Void => {
-                    String::new()
-                }
+        "params_decl" => { 
+            // Generate source for params
+            let child_count = node.child_count();
+            let mut gen_source: Vec<String> = Vec::new();
+            let mut i = 0;
+            while i < child_count {
+                let srcs = gen_node(&node.child(i).unwrap(), source, scope_table, current_scope, meta);
+                gen_source.push(unsafe { srcs.unwrap_top_unchecked() }.to_string());
+                i += 1;
             }
+            
+            Source::new_top(gen_source.join(""))
         }
-        Node::Return(value) => {
-            if let Some(value) = value {
-                gen_node(value)
+        "param_decl" => {
+            let name = node.child_by_field_name("name").unwrap();
+            let name = &source[name.range().start_byte..name.range().end_byte];
+            let int_name = format!("{}${}", node.id(), name);
+            let ty = node.child_by_field_name("type").unwrap();
+            let ty = &source[ty.range().start_byte..ty.range().end_byte];
+            if ty == "Void" { panic!("Found void type in parameter {}", name) }
+            let ty = type_to_wat(ty);
+            
+            Source::new_top(format!("(param ${int_name} {ty})"))
+        }
+        "var_decl" => {
+            let name = node.child_by_field_name("name").unwrap();
+            let name = &source[name.range().start_byte..name.range().end_byte];
+            
+            let int_name = concat_string!(node.id().to_string(), "$", name.to_string());
+            
+            let ty = if let Some(ty_node) = node.child_by_field_name("type") {
+                let ty = &source[ty_node.range().start_byte..ty_node.range().end_byte];
+                if ty == "Void" { panic!("Found void type for variable {}", name) }
+                type_to_wat(ty)
             } else {
-                String::from("") // TODO: return early
-            }
-        }
-        Node::Variable { name: _, function: _, int_name } => {
-            // TODO: after parsing, do another round to add the variable declaration to the variable
-            // TODO: generate variable (local.get)
-            VarGet {
-                int_name: &int_name.as_ref().unwrap()
-            }.build()
-        }
-    }
-}
+                let val = node.child_by_field_name("value").expect(&format!("Couldn't infer type for {}", name));
+                match val.kind() {
+                    "int_literal" => String::from("i32"),
+                    _ => panic!("Couldn't infer type for {}", name)
+                }
+            };
 
-/// Return all variable declarations in a vector of nodes
-fn var_declarations<'a>(nodes: &'a Vec<Node>) -> Vec<&'a Node<'a>> {
-    let mut decls: Vec<&Node> = Vec::new();
-    nodes.iter().for_each(|node| {
-        match node {
-            Node::VarDecl { .. } => {
-                decls.push(node);
+            // Generate assignment source code
+            let mut new_meta = meta.clone().unwrap_or(HashMap::<MetaTag, String>::new());
+            new_meta.insert(MetaTag::VarDeclType, ty.clone());
+            
+            let source_node = node.child_by_field_name("value").unwrap();
+            let generated_source = gen_node(&source_node, source, scope_table, current_scope, &Some(new_meta));
+            let (assign_source, locals) = generated_source.sources();
+            let mut extra_locals = "";
+            if let Some(locals) = locals {
+                extra_locals = locals;
             }
-            _ => {}
-        }
-    });
+            let assign_source = if let Some(src) = assign_source {
+                format!("{src} local.set ${int_name}")
+            } else {
+                String::new()
+            };
     
-    return decls;
-}
-
-/// Buildable to wat
-trait Buildable {
-    fn build(&self) -> String;
-}
-
-
-/// Represents a function in wat
-struct Function<'a> {
-    external_name: String,
-    internal_name: String,
-    return_type: &'a Type,
-    is_public: bool,
-    params: Vec<FuncParam<'a>>,
-    body: &'a Vec<Node<'a>>,
-}
-
-impl Buildable for Function<'_> {
-    fn build(&self) -> String {        
-        // Build function
-        let int_name = &self.internal_name;
-        let export = if self.is_public {
-            let mut exp = format!("(export \"{}\" (func ${}))", self.external_name, self.internal_name);
-            if &self.external_name == "main" {
-                exp = concat_string!(
-                    exp,
-                    format!("(export \"_start\" (func ${}))", self.internal_name)
-                );
-            }
-            exp
-        } else { "".to_string() };
-        let params: String = self.params.iter().map(|param| {
-            format!("(param ${} {})", param.int_name, param.t)
-        }).collect::<Vec<String>>().join("");
-        let body = generate_wat(self.body);
-        let var_decls = var_declarations(self.body); // TODO: threads for body and var_decls?
-        let locals = var_decls.iter().map(|decl| {
-            if let Node::VarDecl { ext_name: _, int_name, t, initial_value: _ } = decl {
-                format!( "(local ${int_name} {t})" )
+            scope_table
+                .get_mut(&current_scope)
+                .unwrap()
+                .vars
+                .insert(name.to_string(), node.id());
+            
+            Source::new_mixed(
+                assign_source,
+                format!("(local ${} {}){extra_locals}", int_name, ty),
+            )
+        }
+        "int_literal" => {
+            let int = &source[node.range().start_byte..node.range().end_byte];
+            let ty = meta.as_ref().unwrap().get(&MetaTag::VarDeclType).unwrap();
+            Source::new(format!("{}.const {}", ty, int))
+        }
+        "return" => {
+            return if let Some(source_node) = node.child_by_field_name("value") {
+                // Check if a value is being returned, or it is an empty return stmt
+                let ty = meta.as_ref().unwrap().get(&MetaTag::FuncReturnType).unwrap();
+                if ty == "" {
+                    panic!("No return type declared for this function, but a value is returned");
+                }
+                
+                // Value should return ty
+                let mut new_meta = meta.clone().unwrap_or(HashMap::<MetaTag, String>::new());
+                new_meta.insert(MetaTag::VarDeclType, ty.clone());
+                
+                // generate the source that should be returned
+                let generated_source = gen_node(&source_node, source, scope_table, current_scope, &Some(new_meta));
+                let (return_source, locals) = generated_source.sources();
+                
+                // Extra locals that might be created
+                let mut extra_locals = "";
+                if let Some(locals) = locals {
+                    extra_locals = locals;
+                }
+    
+                let return_source = if let Some(src) = return_source {
+                    format!("{src} return")
+                } else {
+                    panic!("Expected a return value of type {ty}, but got Void")
+                };
+                
+                Source::new_mixed(return_source, extra_locals.to_string())
             } else {
-                unreachable!()
+                if let Some(ty) = meta.as_ref().unwrap().get(&MetaTag::FuncReturnType) {
+                    if ty != "" {
+                        panic!("Expected a return value of type {ty}, but got Void")
+                    }
+                }
+                Source::new("return".to_string())
+            };
+        }
+        "ident" => {
+            if meta.as_ref().unwrap().get(&MetaTag::VarDeclType).is_some() {
+                // Ident should be used to return a value
+                let name = &source[node.range().start_byte..node.range().end_byte];
+                let id = scope_table.get(&current_scope).unwrap().vars.get(name).expect(&format!("Variable {name} not found"));
+                
+                Source::new(format!("local.get {}", concat_string!("$", id.to_string(), "$", name)))
+            } else {
+                panic!("Unexpected/Unhandeled ident")
             }
-        }).collect::<Vec<String>>().join("");
-        let result = if self.return_type != &Type::Void {
-            let ty = self.return_type;
-            format!("(result {ty})")
-        } else {
-            String::new()
-        };
-        
-        format!(
-            "{export}(func ${int_name} {params}{result}{locals} {body})"
-        )
+        }
+        _ => panic!("Unhandled node: {} - {:?}", node.kind(), node)
     }
 }
 
-/// `var a = a`
-struct VarAssign<'a> {
-    int_name: &'a str,
-    value: String,
-}
-
-impl Buildable for VarAssign<'_> {
-    fn build(&self) -> String {
-        let value = &self.value;
-        let int_name = self.int_name;
-        
-        format!(
-            "{value} local.set ${int_name} "
-        )
-    }
-}
-
-/// Get a variable's value
-struct VarGet<'a> {
-    int_name: &'a str,
-}
-
-impl Buildable for VarGet<'_> {
-    fn build(&self) -> String {
-        format!(
-            "local.get ${} ", self.int_name
-        )
+fn type_to_wat(ty: &str) -> String {
+    match ty {
+        "i32" | "i64" | "f32" | "f64" => { return ty.to_string() }
+        "Void" => { return String::new() }
+        _ => panic!("Unexpected type {ty}")
     }
 }

@@ -1,0 +1,221 @@
+====
+func
+====
+
+func someFunc() {}
+
+---
+
+(program
+    (func_decl
+        (ident)
+    )
+)
+
+========
+pub func
+========
+
+pub func someFunc() {}
+
+---
+
+(program
+    (func_decl
+        (pub)
+        (ident)
+    )
+)
+
+===============
+func with param
+===============
+
+pub func someFunc(field: i32) {}
+
+---
+
+(program
+    (func_decl
+        (pub)
+        (ident)
+        (params_decl
+            (param_decl
+                (ident)
+                (type)
+            )
+        )
+    )
+)
+
+================
+func with params
+================
+
+pub func someFunc(field: i32, other: i32) {}
+
+---
+
+(program
+    (func_decl
+        (pub)
+        (ident)
+        (params_decl
+            (param_decl
+                (ident)
+                (type)
+            )
+            (param_decl
+                (ident)
+                (type)
+            )
+        )
+    )
+)
+
+===============
+var declaration
+===============
+
+var m = 5
+
+---
+
+(program
+    (var_decl
+        (ident)
+        (int_literal)
+    )
+)
+
+==================
+var decl with type
+==================
+
+var m: i32 = 5
+
+---
+
+(program
+    (var_decl
+        (ident)
+        (type)
+        (int_literal)
+    )
+)
+
+==========================
+func with var decl in body
+==========================
+
+func someFunc() { var m: i32 = 5 }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (body
+            (var_decl
+                (ident)
+                (type)
+                (int_literal)
+            )
+        )
+    )
+)
+
+=====================
+func with return type
+=====================
+
+func someFunc() -> i32 {}
+
+---
+
+(program 
+    (func_decl
+        (ident)
+        (type)
+    )
+)
+
+========================
+func with return literal
+========================
+
+func five() -> i32 { 
+    return 5 
+}
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (type)
+        (body 
+            (return (int_literal))
+        )
+    )
+)
+
+====================
+func with var return
+====================
+
+func someFunc() -> i32 { var m: i32 = 5 return m }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (type)
+        (body
+            (var_decl
+                (ident)
+                (type)
+                (int_literal)
+            )
+            (return
+                (ident)
+            )
+        )
+    )
+)
+
+======================
+func with empty return
+======================
+
+func someFunc() { return }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (body
+            (return)
+        )
+    )
+)
+
+========================
+func with literal return
+========================
+
+func someFunc() -> i32 { return 1 }
+
+---
+
+(program
+    (func_decl
+        (ident)
+        (type)
+        (body
+            (return (int_literal))
+        )
+    )
+)
